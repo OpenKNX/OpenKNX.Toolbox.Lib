@@ -15,4 +15,9 @@ public class Product
         FirmwareFile = file;
         Architecture = arch;
     }
+
+    public override string ToString()
+    {
+        return Name;
+    }
 }

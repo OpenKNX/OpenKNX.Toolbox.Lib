@@ -11,8 +11,16 @@ public static class ReleaseContentHelper
 {
     public static ReleaseContentModel GetReleaseContent(string path)
     {
+        CheckContentXml(System.IO.Path.Combine(path, "content.xml"));
         XElement xele = XElement.Load(System.IO.Path.Combine(path, "content.xml"));
         return ParseReleaseContent(xele, path);
+    }
+
+    private static void CheckContentXml(string path)
+    {
+        string content = System.IO.File.ReadAllText(path);
+        content = content.Replace("    <Products>\r\n</Content>", "    </Products>\r\n</Content>");
+        System.IO.File.WriteAllText(path, content);
     }
 
     private static ReleaseContentModel ParseReleaseContent(XElement root, string path)
@@ -29,7 +37,7 @@ public static class ReleaseContentHelper
         foreach(XElement prod in prods.Elements())
         {
             Product product = new() {
-                Name = prod.Attribute("Name")?.Value,
+                Name = prod.Attribute("Name")?.Value ?? "Unbenannt",
                 FirmwareFile = System.IO.Path.Combine(path, prod.Attribute("Firmware")?.Value)
             };
             if(prod.Attribute("Processor") == null) throw new AttributeNotFoundException("Processor");
