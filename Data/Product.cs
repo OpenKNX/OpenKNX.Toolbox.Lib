@@ -1,3 +1,4 @@
+using OpenKNX.Toolbox.Lib.Models;
 
 namespace OpenKNX.Toolbox.Lib.Data;
 
@@ -15,6 +16,9 @@ public class Product
         FirmwareFile = file;
         Architecture = arch;
     }
+
+    [Newtonsoft.Json.JsonIgnore]
+    public ReleaseContentModel? ReleaseContent { get; set; }
 
     public override string ToString()
     {

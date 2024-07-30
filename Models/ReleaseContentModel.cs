@@ -11,4 +11,5 @@ public class ReleaseContentModel
     public string ReleaseName { get; set; } = "";
     public DateTimeOffset? Published { get; set; }
     public bool IsPrerelease { get; set; } = false;
+    public string Version { get; set; } = "";
 }

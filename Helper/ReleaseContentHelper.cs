@@ -38,7 +38,8 @@ public static class ReleaseContentHelper
         {
             Product product = new() {
                 Name = prod.Attribute("Name")?.Value ?? "Unbenannt",
-                FirmwareFile = System.IO.Path.Combine(path, prod.Attribute("Firmware")?.Value)
+                FirmwareFile = System.IO.Path.Combine(path, prod.Attribute("Firmware")?.Value),
+                ReleaseContent = model
             };
             if(prod.Attribute("Processor") == null) throw new AttributeNotFoundException("Processor");
             object? type;
