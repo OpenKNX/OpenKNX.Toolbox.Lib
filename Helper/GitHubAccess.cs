@@ -70,7 +70,7 @@ public static class GitHubAccess
                         major = int.Parse(m.Groups[1].Value);
                         minor = int.Parse(m.Groups[2].Value);
                     } else {
-
+                        Console.WriteLine("Keine Version gefunden");
                     }
                 }
 
