@@ -17,7 +17,16 @@ public class RP2040_Platform : IPlatform
                 devices.Add(new PlatformDevice(Architecture, drive.VolumeLabel, drive.Name, "copy"));
         }
 
-        var x = LibUsbDotNet.UsbDevice.AllDevices;
+        LibUsbDotNet.Main.UsbRegDeviceList x = LibUsbDotNet.UsbDevice.AllDevices;
+
+        foreach(LibUsbDotNet.Main.UsbRegistry usb in x)
+        {
+            LibUsbDotNet.UsbDevice _device;
+            if(usb.Open(out _device)) {
+
+            }
+        }
+        LibUsbDotNet.UsbDevice.Exit();
 
 #if DEBUG
         devices.Add(new PlatformDevice(Architecture, "Test Drive", "K:\\", "copy"));
