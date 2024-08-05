@@ -17,7 +17,11 @@ public class RP2040_Platform : IPlatform
                 devices.Add(new PlatformDevice(Architecture, drive.VolumeLabel, drive.Name, "copy"));
         }
 
+        var x = LibUsbDotNet.UsbDevice.AllDevices;
+
+#if DEBUG
         devices.Add(new PlatformDevice(Architecture, "Test Drive", "K:\\", "copy"));
+#endif
 
         return devices;
     }
@@ -27,7 +31,7 @@ public class RP2040_Platform : IPlatform
         switch(device.Method)
         {
             case "copy":
-                UploadViaCopy(device.Path, firmwarePath, progress);
+                await UploadViaCopy(device.Path, firmwarePath, progress);
                 break;
 
             default:

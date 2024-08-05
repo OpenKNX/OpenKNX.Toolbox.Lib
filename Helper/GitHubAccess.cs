@@ -30,7 +30,7 @@ public static class GitHubAccess
         if(!string.IsNullOrEmpty(token))
         {
             System.Console.WriteLine("Using Token: " + token);
-            Octokit.Credentials tokenAuth = new (token); // NOTE: not real token
+            Octokit.Credentials tokenAuth = new (token);
             client.Credentials = tokenAuth;
         }
 
