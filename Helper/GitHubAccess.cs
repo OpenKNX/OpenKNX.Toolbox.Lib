@@ -21,7 +21,7 @@ public static class GitHubAccess
     /// Returns OpenKNX Repository data from GitHub.
     /// </summary>
     /// <returns>Returns a List of "Repository" object in case of success.</returns>
-    public static async Task<List<Repository>> GetOpenKnxRepositoriesAsync(bool includePreRelease = false)
+    public static async Task<List<Repository>> GetOpenKnxRepositoriesAsync(bool includePreRelease = false, IProgress<KeyValuePair<long, long>>? progress = null)
     {
         List<Repository> repos = new List<Repository>();
         Octokit.GitHubClient client = new (new Octokit.ProductHeaderValue(OPEN_KNX_ORG));
@@ -35,8 +35,12 @@ public static class GitHubAccess
         }
 
         var repositories = await client.Repository.GetAllForOrg(OPEN_KNX_ORG);
+        int index = 0;
         foreach (var repository in repositories)
         {
+            progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
+            index++;
+
             if (!repository.Name.StartsWith(OPEN_KNX_REPO_DEFAULT_START) &&
                 !repositoryWhitelist.Contains(repository.Name))
                 continue;
@@ -97,13 +101,14 @@ public static class GitHubAccess
             if(repo.Releases.Count > 0)
                 repos.Add(repo);
         }
+        progress?.Report(new KeyValuePair<long, long>(++index, repositories.Count));
 
         repos.Sort((a, b) => a.Name.CompareTo(b.Name));
 
         return repos;
     }
 
-    public static async Task DownloadRepo(string url, string targetPath)
+    public static async Task DownloadRepo(string url, string targetPath, IProgress<KeyValuePair<long, long>>? progress = null)
     {
         using (var client = new HttpClient())
         {
@@ -112,7 +117,18 @@ public static class GitHubAccess
             {
                 var contentStream = await response.Content.ReadAsStreamAsync();
                 var fileStream = new FileStream(targetPath, System.IO.FileMode.Create);
-                await contentStream.CopyToAsync(fileStream);
+                //await contentStream.CopyToAsync(fileStream);
+                byte[] buffer = new byte[1024];
+                int readedBytes = 0;
+                int wroteBytes = 0;
+                while(true) {
+                    readedBytes = contentStream.Read(buffer, 0, 1024);
+                    fileStream.Write(buffer, 0, readedBytes);
+                    wroteBytes += readedBytes;
+                    progress?.Report(new KeyValuePair<long, long>(wroteBytes, contentStream.Length));
+                    if(readedBytes < 1024)
+                        break;
+                }
                 await fileStream.FlushAsync();
                 fileStream.Close();
             }
