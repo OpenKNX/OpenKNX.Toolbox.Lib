@@ -6,7 +6,7 @@ public class ESP32_Platform : IPlatform
 {
     public ArchitectureType Architecture { get; } = ArchitectureType.ESP32;
     
-    public List<PlatformDevice> GetDevices()
+    public async Task<List<PlatformDevice>> GetDevices()
     {
         List<PlatformDevice> devices = new();
 

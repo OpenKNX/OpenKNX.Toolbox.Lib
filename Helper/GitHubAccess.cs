@@ -101,7 +101,7 @@ public static class GitHubAccess
             if(repo.Releases.Count > 0)
                 repos.Add(repo);
         }
-        progress?.Report(new KeyValuePair<long, long>(++index, repositories.Count));
+        progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
 
         repos.Sort((a, b) => a.Name.CompareTo(b.Name));
 

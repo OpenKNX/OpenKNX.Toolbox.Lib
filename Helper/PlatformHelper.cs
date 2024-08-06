@@ -12,13 +12,13 @@ public class PlatformHelper
         };
     }
 
-    public static List<PlatformDevice> GetDevices()
+    public static async Task<List<PlatformDevice>> GetDevices()
     {
         List<PlatformDevice> devices = new();
 
         foreach(IPlatform platform in GetPlatforms())
         {
-            devices.AddRange(platform.GetDevices());
+            devices.AddRange(await platform.GetDevices());
         }
 
         return devices;
