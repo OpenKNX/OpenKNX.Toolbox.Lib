@@ -78,6 +78,14 @@ public class RP2040_Platform : IPlatform
 flu0@laptop:~$ ls /dev/serial/by-path/
 total 0
 lrwxrwxrwx 1 root root 13 2011-07-20 17:12 pci-0000:00:0b.0-usb-0:3:1.0-port0 -> ../../ttyUSB0
+
+    ls /dev/ttyACM*
+    -> /dev/ttyACM0 /dev/ttyACM1 ...
+
+    cat /sys/class/tty/ttyACM1/device/uevent
+
+    PRODUCT=2e8a/a/100
+    TYPE=0/0/0
         */
     }
 
