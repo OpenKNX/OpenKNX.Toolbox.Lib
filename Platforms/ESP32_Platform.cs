@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using ESPTool.Devices;
 using OpenKNX.Toolbox.Lib.Data;
 
 namespace OpenKNX.Toolbox.Lib.Platforms;
@@ -25,7 +26,7 @@ public class ESP32_Platform : IPlatform
         string command = "$portList = get-pnpdevice -class Ports\r\n" +
                     "foreach ($usbDevice in $portList) {\r\n" + 
                         "\tif ($usbDevice.Present) {\r\n" +
-                            "\t\t$isPico = $usbDevice.InstanceId.StartsWith('USB\\VID_1A86')\r\n" +
+                            "\t\t$isPico = $usbDevice.InstanceId.StartsWith('USB\\VID_10C4')\r\n" +
                             "\t\t$isCom = $usbDevice.Name -match 'COM\\d{1,3}'\r\n" +
                             "\t\tif ($isPico) {\r\n" +
                                 "\t\t\t$port = $Matches[0]\r\n" +
@@ -60,6 +61,19 @@ public class ESP32_Platform : IPlatform
 
     public async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
     {
-        throw new NotImplementedException();
+        Device dev = new Device();
+        Console.WriteLine("Open Device " + device.Path);
+        ESPTool.Result result = await dev.OpenSerial(device.Path, 115200);
+        if(!result.Success)
+            throw new Exception(result.Error.ToString());
+        Console.Write("Entering Bootloader...  ");
+        result = await dev.EnterBootloader();
+        Console.WriteLine(result.Success ? "OKAY" : "FAIL");
+        Console.Write("Syncing...  ");
+        result = await dev.Sync();
+        Console.WriteLine(result.Success ? "OKAY" : "FAIL");
+        Console.Write("Checking Type... ");
+        ESPTool.Result<ChipTypes> type = await dev.DetectChipType();
+        Console.WriteLine(type.Success ? type.ToString() : "FAIL");
     }
 }
