@@ -7,6 +7,7 @@ public class Release : IComparable
     public long Id { get; set; } = 0;
     public string Name { get; set; } = "";
     public string Url { get; set; } = "";
+    public string UrlRelease { get; set; } = "";
     public bool IsPrerelease { get; set; } = false;
     public DateTimeOffset? Published { get; set; }
 

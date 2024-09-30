@@ -87,6 +87,7 @@ public static class GitHubAccess
                         Id = asset.Id,
                         Name = asset.Name,
                         Url = asset.BrowserDownloadUrl,
+                        UrlRelease = release.HtmlUrl,
                         IsPrerelease = release.Prerelease,
                         Major = major,
                         Minor = minor,
