@@ -8,20 +8,13 @@ public static class GitHubAccess
     private const string OPEN_KNX_ORG = "OpenKNX";
     private const string OPEN_KNX_REPO_DEFAULT_START = "OAM-";
     private const string OPEN_KNX_DATA_FILE_NAME = "OpenKNX.Toolbox.DataCache.json";
-
-    private static List<string> repositoryWhitelist = new List<string>()
-    {
-        "SOM-UP",
-        "GW-REG1-Dali",
-        "SEN-UP1-8xTH",
-        "BEM-GardenControl"
-    };
+    private static List<string> repositoryWhitelist = new List<string>();
 
     /// <summary>
     /// Returns OpenKNX Repository data from GitHub.
     /// </summary>
     /// <returns>Returns a List of "Repository" object in case of success.</returns>
-    public static async Task<List<Repository>> GetOpenKnxRepositoriesAsync(bool includePreRelease = false, IProgress<KeyValuePair<long, long>>? progress = null)
+    public static async Task<List<Repository>> GetOpenKnxRepositoriesAsync(IProgress<KeyValuePair<long, long>>? progress = null)
     {
         List<Repository> repos = new List<Repository>();
         Octokit.GitHubClient client = new (new Octokit.ProductHeaderValue(OPEN_KNX_ORG));
@@ -32,6 +25,18 @@ public static class GitHubAccess
             System.Console.WriteLine("Using Token: " + token);
             Octokit.Credentials tokenAuth = new (token);
             client.Credentials = tokenAuth;
+        }
+
+        if(repositoryWhitelist.Count == 0)
+        {
+            try {
+                HttpClient http = new();
+                string whitelist = await http.GetStringAsync("https://raw.githubusercontent.com/OpenKNX/OpenKNX.Toolbox/refs/heads/main/Repo-Whitelist");
+                foreach(string rep in whitelist.Split("\n"))
+                        repositoryWhitelist.Add(rep);
+            } catch {
+                // Do nothing...
+            }
         }
 
         var repositories = await client.Repository.GetAllForOrg(OPEN_KNX_ORG);
@@ -53,7 +58,7 @@ public static class GitHubAccess
             var releases = await client.Repository.Release.GetAll(repository.Id);
             foreach (var release in releases)
             {
-                if (string.IsNullOrEmpty(release.Name) || (!includePreRelease && release.Prerelease))
+                if (string.IsNullOrEmpty(release.Name))
                     continue;
 
                 string tag = release.TagName;
@@ -82,8 +87,8 @@ public static class GitHubAccess
                 {
                     if (!asset.Name.ToLower().EndsWith(".zip"))
                         continue;
-                    
-                    repo.Releases.Add(new() {
+
+                    Release rel = new() {
                         Id = asset.Id,
                         Name = asset.Name,
                         Url = asset.BrowserDownloadUrl,
@@ -93,13 +98,15 @@ public static class GitHubAccess
                         Minor = minor,
                         Build = build,
                         Published = release.PublishedAt
-                    });
+                    };
+                    
+                    repo.ReleasesAll.Add(rel);
                 }
 
-                repo.Releases.Sort((a, b) => a.CompareTo(b));
+                repo.ReleasesAll.Sort((a, b) => a.CompareTo(b));
             }
 
-            if(repo.Releases.Count > 0)
+            if(repo.ReleasesAll.Count > 0)
                 repos.Add(repo);
         }
         progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
