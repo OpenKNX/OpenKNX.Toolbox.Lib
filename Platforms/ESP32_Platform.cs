@@ -9,7 +9,7 @@ public class ESP32_Platform : IPlatform
 {
     public ArchitectureType Architecture { get; } = ArchitectureType.ESP32;
     
-    public async Task<List<PlatformDevice>> GetDevices()
+    public async Task<List<PlatformDevice>> GetDevices(bool onlySerial = false)
     {
         List<PlatformDevice> devices = new();
 
@@ -46,8 +46,9 @@ public class ESP32_Platform : IPlatform
         await proc.WaitForExitAsync();
         while (!proc.StandardOutput.EndOfStream)
         {
-            string line = await proc.StandardOutput.ReadLineAsync();
-            lines.Add(line);
+            string line = await proc.StandardOutput.ReadLineAsync() ?? "";
+            if(!string.IsNullOrEmpty(line))
+                lines.Add(line);
         }
             
         foreach(string port in lines)

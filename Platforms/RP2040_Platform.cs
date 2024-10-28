@@ -9,11 +9,12 @@ public class RP2040_Platform : IPlatform
 {
     public ArchitectureType Architecture { get; } = ArchitectureType.RP2040;
 
-    public async Task<List<PlatformDevice>> GetDevices()
+    public async Task<List<PlatformDevice>> GetDevices(bool onlySerial = false)
     {
         List<PlatformDevice> devices = new();
 
-        FindUsbDrives(devices);
+        if(!onlySerial)
+            FindUsbDrives(devices);
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             await FindPicoWindows(devices);
@@ -21,7 +22,8 @@ public class RP2040_Platform : IPlatform
             await FindPicoLinux(devices);
 
 #if DEBUG
-        devices.Add(new PlatformDevice(Architecture, "Test Drive", "K:\\", "copy"));
+        if(!onlySerial)
+            devices.Add(new PlatformDevice(Architecture, "Test Drive", "K:\\", "copy"));
 #endif
 
         return devices;
