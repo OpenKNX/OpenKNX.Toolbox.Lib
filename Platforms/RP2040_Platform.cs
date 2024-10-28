@@ -39,7 +39,7 @@ public class RP2040_Platform : IPlatform
 
     private async Task FindPicoWindows(List<PlatformDevice> devices)
     {
-        string command = "$portList = get-pnpdevice -class Ports\r\n" +
+        string command = "$portList = get-pnpdevice -class Ports -erroraction 'silentlycontinue'\r\n" +
                     "foreach ($usbDevice in $portList) {\r\n" + 
                         "\tif ($usbDevice.Present) {\r\n" +
                             "\t\t$isPico = $usbDevice.InstanceId.StartsWith('USB\\VID_2E8A')\r\n" +
