@@ -58,9 +58,6 @@ public static class GitHubAccess
             var releases = await client.Repository.Release.GetAll(repository.Id);
             foreach (var release in releases)
             {
-                if (string.IsNullOrEmpty(release.Name))
-                    continue;
-
                 string tag = release.TagName;
                 Regex regex = new Regex("([0-9]+).([0-9]+).([0-9]+)");
                 Match m = regex.Match(tag);
