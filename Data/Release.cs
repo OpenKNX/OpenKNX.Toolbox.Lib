@@ -4,7 +4,7 @@ namespace OpenKNX.Toolbox.Lib.Data;
 
 public class Release : IComparable
 {
-    public long Id { get; set; } = 0;
+
     public string Name { get; set; } = "";
     public string Url { get; set; } = "";
     public string UrlRelease { get; set; } = "";

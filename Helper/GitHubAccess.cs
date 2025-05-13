@@ -17,48 +17,27 @@ public static class GitHubAccess
     public static async Task<List<Repository>> GetOpenKnxRepositoriesAsync(IProgress<KeyValuePair<long, long>>? progress = null)
     {
         List<Repository> repos = new List<Repository>();
-        Octokit.GitHubClient client = new (new Octokit.ProductHeaderValue(OPEN_KNX_ORG));
+
+        HttpClient client = new HttpClient();
+        string json_response = await client.GetStringAsync("https://openknx.github.io/releases.json");
         
-        string? token = Environment.GetEnvironmentVariable("GITHUB_TOKEN", EnvironmentVariableTarget.User);
-        if(!string.IsNullOrEmpty(token))
-        {
-            System.Console.WriteLine("Using Token: " + token);
-            Octokit.Credentials tokenAuth = new (token);
-            client.Credentials = tokenAuth;
-        }
+        Models.Github.OpenKnxContent? content = Newtonsoft.Json.JsonConvert.DeserializeObject<Models.Github.OpenKnxContent>(json_response);
+        if(content == null)
+            throw new Exception("Error while deserializing JSON response.");
 
-        if(repositoryWhitelist.Count == 0)
-        {
-            try {
-                HttpClient http = new();
-                string whitelist = await http.GetStringAsync("https://raw.githubusercontent.com/OpenKNX/OpenKNX.Toolbox/refs/heads/main/Repo-Whitelist");
-                foreach(string rep in whitelist.Split("\n"))
-                        repositoryWhitelist.Add(rep);
-            } catch {
-                // Do nothing...
-            }
-        }
-
-        var repositories = await client.Repository.GetAllForOrg(OPEN_KNX_ORG);
         int index = 0;
-        foreach (var repository in repositories)
+        foreach(var repo in content.Repositories)
         {
-            progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
+            progress?.Report(new KeyValuePair<long, long>(index, content.Repositories.Count));
             index++;
 
-            if (!repository.Name.StartsWith(OPEN_KNX_REPO_DEFAULT_START) &&
-                !repositoryWhitelist.Contains(repository.Name))
-                continue;
+            Repository repository = new Repository(repo.Key, repo.Value.Url);
+            if(repo.Value.IsArchived)
+                repository.Name += " (archived)";
 
-            Repository repo = new () {
-                Id = repository.Id,
-                Name = repository.Name
-            };
-
-            var releases = await client.Repository.Release.GetAll(repository.Id);
-            foreach (var release in releases)
+            foreach(var release in repo.Value.Releases)
             {
-                string tag = release.TagName;
+                string tag = release.Tag;
                 Regex regex = new Regex("([0-9]+).([0-9]+).([0-9]+)");
                 Match m = regex.Match(tag);
                 int major = 0, minor = 0, build = 0;
@@ -86,27 +65,97 @@ public static class GitHubAccess
                         continue;
 
                     Release rel = new() {
-                        Id = asset.Id,
                         Name = asset.Name,
-                        Url = asset.BrowserDownloadUrl,
-                        UrlRelease = release.HtmlUrl,
-                        IsPrerelease = release.Prerelease,
+                        Url = asset.Url,
+                        UrlRelease = release.Url,
+                        IsPrerelease = release.IsPrerelease,
                         Major = major,
                         Minor = minor,
                         Build = build,
                         Published = release.PublishedAt
                     };
                     
-                    repo.ReleasesAll.Add(rel);
+                    repository.ReleasesAll.Add(rel);
                 }
 
-                repo.ReleasesAll.Sort((a, b) => a.CompareTo(b));
+                repository.ReleasesAll.Sort((a, b) => a.CompareTo(b));
             }
 
-            if(repo.ReleasesAll.Count > 0)
-                repos.Add(repo);
+            if(repository.ReleasesAll.Count > 0)
+                repos.Add(repository);
         }
-        progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
+
+        progress?.Report(new KeyValuePair<long, long>(index, content.Repositories.Count));
+
+        // var repositories = await client.Repository.GetAllForOrg(OPEN_KNX_ORG);
+        // int index = 0;
+        // foreach (var repository in repositories)
+        // {
+        //     progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
+        //     index++;
+
+        //     if (!repository.Name.StartsWith(OPEN_KNX_REPO_DEFAULT_START) &&
+        //         !repositoryWhitelist.Contains(repository.Name))
+        //         continue;
+
+        //     Repository repo = new () {
+        //         Id = repository.Id,
+        //         Name = repository.Name
+        //     };
+
+        //     var releases = await client.Repository.Release.GetAll(repository.Id);
+        //     foreach (var release in releases)
+        //     {
+        //         string tag = release.TagName;
+        //         Regex regex = new Regex("([0-9]+).([0-9]+).([0-9]+)");
+        //         Match m = regex.Match(tag);
+        //         int major = 0, minor = 0, build = 0;
+        //         if(m.Success) 
+        //         {
+        //             major = int.Parse(m.Groups[1].Value);
+        //             minor = int.Parse(m.Groups[2].Value);
+        //             build = int.Parse(m.Groups[3].Value);
+        //         } else 
+        //         {
+        //             regex = new Regex("([0-9]+).([0-9]+)");
+        //             m = regex.Match(tag);
+        //             if(m.Success)
+        //             {
+        //                 major = int.Parse(m.Groups[1].Value);
+        //                 minor = int.Parse(m.Groups[2].Value);
+        //             } else {
+        //                 Console.WriteLine("Keine Version gefunden");
+        //             }
+        //         }
+
+        //         foreach (var asset in release.Assets)
+        //         {
+        //             if (!asset.Name.ToLower().EndsWith(".zip"))
+        //                 continue;
+
+        //             Release rel = new() {
+        //                 Id = asset.Id,
+        //                 Name = asset.Name,
+        //                 Url = asset.BrowserDownloadUrl,
+        //                 UrlRelease = release.HtmlUrl,
+        //                 IsPrerelease = release.Prerelease,
+        //                 Major = major,
+        //                 Minor = minor,
+        //                 Build = build,
+        //                 Published = release.PublishedAt
+        //             };
+                    
+        //             repo.ReleasesAll.Add(rel);
+        //         }
+
+        //         repo.ReleasesAll.Sort((a, b) => a.CompareTo(b));
+        //     }
+
+        //     if(repo.ReleasesAll.Count > 0)
+        //         repos.Add(repo);
+        // }
+        
+        //progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
 
         repos.Sort((a, b) => a.Name.CompareTo(b.Name));
 
