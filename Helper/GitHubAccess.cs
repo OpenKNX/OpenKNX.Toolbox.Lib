@@ -5,6 +5,7 @@ namespace OpenKNX.Toolbox.Lib.Helper;
 
 public static class GitHubAccess
 {
+    private const int OPEN_KNX_SEMANTIC_VERSION = 0;
     private const string OPEN_KNX_ORG = "OpenKNX";
     private const string OPEN_KNX_REPO_DEFAULT_START = "OAM-";
     private const string OPEN_KNX_DATA_FILE_NAME = "OpenKNX.Toolbox.DataCache.json";
@@ -21,9 +22,13 @@ public static class GitHubAccess
         HttpClient client = new HttpClient();
         string json_response = await client.GetStringAsync("https://openknx.github.io/releases.json");
         
+        //json_response = json_response.Replace("v0.1.0-ALPHA", "0.1.0-ALPHA");
         Models.Github.OpenKnxContent? content = Newtonsoft.Json.JsonConvert.DeserializeObject<Models.Github.OpenKnxContent>(json_response);
         if(content == null)
             throw new Exception("Error while deserializing JSON response.");
+
+        if(content.GetSemanticVersion().Major < OPEN_KNX_SEMANTIC_VERSION)
+            throw new Exception($"OpenKNX Toolbox version is not compatible with the current OpenKNX repository version. ({OPEN_KNX_SEMANTIC_VERSION}/{content.GetSemanticVersion().Major})");
 
         int index = 0;
         foreach(var repo in content.Repositories)
@@ -38,25 +43,18 @@ public static class GitHubAccess
             foreach(var release in repo.Value.Releases)
             {
                 string tag = release.Tag;
-                Regex regex = new Regex("([0-9]+).([0-9]+).([0-9]+)");
-                Match m = regex.Match(tag);
-                int major = 0, minor = 0, build = 0;
-                if(m.Success) 
+                if(tag.ToLower().StartsWith("v"))
+                    tag = tag.Substring(1);
+                System.Management.Automation.SemanticVersion? version;
+                
+                try{
+                    version = new System.Management.Automation.SemanticVersion(tag);
+                }
+                catch
                 {
-                    major = int.Parse(m.Groups[1].Value);
-                    minor = int.Parse(m.Groups[2].Value);
-                    build = int.Parse(m.Groups[3].Value);
-                } else 
-                {
-                    regex = new Regex("([0-9]+).([0-9]+)");
-                    m = regex.Match(tag);
-                    if(m.Success)
-                    {
-                        major = int.Parse(m.Groups[1].Value);
-                        minor = int.Parse(m.Groups[2].Value);
-                    } else {
-                        Console.WriteLine("Keine Version gefunden");
-                    }
+                    // Handle the case where the tag is not a valid semantic version
+                    // For example, if the tag is "v1.0.0-alpha", you might want to skip it
+                    continue;
                 }
 
                 foreach (var asset in release.Assets)
@@ -69,9 +67,9 @@ public static class GitHubAccess
                         Url = asset.Url,
                         UrlRelease = release.Url,
                         IsPrerelease = release.IsPrerelease,
-                        Major = major,
-                        Minor = minor,
-                        Build = build,
+                        Major = version.Major,
+                        Minor = version.Minor,
+                        Build = version.Patch,
                         Published = release.PublishedAt
                     };
                     
@@ -86,77 +84,6 @@ public static class GitHubAccess
         }
 
         progress?.Report(new KeyValuePair<long, long>(index, content.Repositories.Count));
-
-        // var repositories = await client.Repository.GetAllForOrg(OPEN_KNX_ORG);
-        // int index = 0;
-        // foreach (var repository in repositories)
-        // {
-        //     progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
-        //     index++;
-
-        //     if (!repository.Name.StartsWith(OPEN_KNX_REPO_DEFAULT_START) &&
-        //         !repositoryWhitelist.Contains(repository.Name))
-        //         continue;
-
-        //     Repository repo = new () {
-        //         Id = repository.Id,
-        //         Name = repository.Name
-        //     };
-
-        //     var releases = await client.Repository.Release.GetAll(repository.Id);
-        //     foreach (var release in releases)
-        //     {
-        //         string tag = release.TagName;
-        //         Regex regex = new Regex("([0-9]+).([0-9]+).([0-9]+)");
-        //         Match m = regex.Match(tag);
-        //         int major = 0, minor = 0, build = 0;
-        //         if(m.Success) 
-        //         {
-        //             major = int.Parse(m.Groups[1].Value);
-        //             minor = int.Parse(m.Groups[2].Value);
-        //             build = int.Parse(m.Groups[3].Value);
-        //         } else 
-        //         {
-        //             regex = new Regex("([0-9]+).([0-9]+)");
-        //             m = regex.Match(tag);
-        //             if(m.Success)
-        //             {
-        //                 major = int.Parse(m.Groups[1].Value);
-        //                 minor = int.Parse(m.Groups[2].Value);
-        //             } else {
-        //                 Console.WriteLine("Keine Version gefunden");
-        //             }
-        //         }
-
-        //         foreach (var asset in release.Assets)
-        //         {
-        //             if (!asset.Name.ToLower().EndsWith(".zip"))
-        //                 continue;
-
-        //             Release rel = new() {
-        //                 Id = asset.Id,
-        //                 Name = asset.Name,
-        //                 Url = asset.BrowserDownloadUrl,
-        //                 UrlRelease = release.HtmlUrl,
-        //                 IsPrerelease = release.Prerelease,
-        //                 Major = major,
-        //                 Minor = minor,
-        //                 Build = build,
-        //                 Published = release.PublishedAt
-        //             };
-                    
-        //             repo.ReleasesAll.Add(rel);
-        //         }
-
-        //         repo.ReleasesAll.Sort((a, b) => a.CompareTo(b));
-        //     }
-
-        //     if(repo.ReleasesAll.Count > 0)
-        //         repos.Add(repo);
-        // }
-        
-        //progress?.Report(new KeyValuePair<long, long>(index, repositories.Count));
-
         repos.Sort((a, b) => a.Name.CompareTo(b.Name));
 
         return repos;

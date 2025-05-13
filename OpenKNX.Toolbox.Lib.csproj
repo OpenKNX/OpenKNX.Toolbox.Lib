@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -11,5 +11,6 @@
     <PackageReference Include="Octokit" Version="13.0.1" />
     <PackageReference Include="Newtonsoft.JSON" Version="13.0.3" />
     <PackageReference Include="System.IO.Ports" Version="8.0.0" />
+    <PackageReference Include="System.Management.Automation" Version="7.5.1" />
   </ItemGroup>
 </Project>
