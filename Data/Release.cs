@@ -1,5 +1,8 @@
 
 
+using System.Management.Automation;
+using Newtonsoft.Json;
+
 namespace OpenKNX.Toolbox.Lib.Data;
 
 public class Release : IComparable
@@ -11,13 +14,36 @@ public class Release : IComparable
     public bool IsPrerelease { get; set; } = false;
     public DateTimeOffset? Published { get; set; }
 
-    public int Major { get; set; } = 0;
-    public int Minor { get; set; } = 0;
-    public int Build { get; set; } = 0;
+    [JsonIgnore]
+    public SemanticVersion Version { get; set; } = new SemanticVersion(0, 0, 0);
+
+    private string _versionString = "";
+    public string VersionString
+    {
+        get
+        {
+            if (Version.ToString() != "0.0.0")
+                return Version.ToString();
+            return _versionString;
+        }
+
+        set
+        {
+            _versionString = value;
+            try
+            {
+                Version = new SemanticVersion(value);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing version: {ex.Message}");
+            }
+        }
+    }
 
     public override string ToString()
     {
-        return $"v{Major}.{Minor}.{Build} - {Name}{(IsPrerelease ? " (PreRelease)" : "")}";
+        return $"v{Version}{(IsPrerelease ? " (PreRelease)" : "")}";
     }
 
     public int CompareTo(object? obj)
@@ -25,16 +51,20 @@ public class Release : IComparable
         Release? rel = obj as Release;
         if(rel == null) return 0;
 
-        if(Major == rel.Major)
+        if(Version.Major == rel.Version.Major)
         {
-            if(Minor == rel.Minor)
+            if (Version.Minor == rel.Version.Minor)
             {
-                if(Build == rel.Build)
-                    return Name.CompareTo(rel.Name);
-                return Build.CompareTo(rel.Build)*-1;
+                if (Version.Patch == rel.Version.Patch)
+                {
+                    if (Version.BuildLabel == rel.Version.BuildLabel)
+                        return Name.CompareTo(rel.Name);
+                    return Version.BuildLabel.CompareTo(rel.Version.BuildLabel) * -1;
+                }
+                return Version.Patch.CompareTo(rel.Version.Patch)*-1;
             }
-            return Minor.CompareTo(rel.Minor)*-1;
+            return Version.Minor.CompareTo(rel.Version.Minor)*-1;
         }
-        return Major.CompareTo(rel.Major)*-1;
+        return Version.Major.CompareTo(rel.Version.Major)*-1;
     }
 }

@@ -54,6 +54,7 @@ public static class GitHubAccess
                 {
                     // Handle the case where the tag is not a valid semantic version
                     // For example, if the tag is "v1.0.0-alpha", you might want to skip it
+                    System.Diagnostics.Debug.WriteLine($"Invalid semantic version: {repository.Name}/{tag}");
                     continue;
                 }
 
@@ -62,14 +63,22 @@ public static class GitHubAccess
                     if (!asset.Name.ToLower().EndsWith(".zip"))
                         continue;
 
+                    string repoName = repo.Key;
+                    if(repoName.StartsWith("OAM-"))
+                        repoName = repoName.Substring(4);
+                    if (asset.Name.StartsWith(repoName))
+                    {
+                        string buildLabel = asset.Name.Substring(repoName.Length + 1);
+                        buildLabel = buildLabel.Substring(0, buildLabel.IndexOf("-"));
+                        version = new System.Management.Automation.SemanticVersion(version.Major, version.Minor, version.Patch, buildLabel, version.BuildLabel);
+                    }
+
                     Release rel = new() {
                         Name = asset.Name,
                         Url = asset.Url,
                         UrlRelease = release.Url,
                         IsPrerelease = release.IsPrerelease,
-                        Major = version.Major,
-                        Minor = version.Minor,
-                        Build = version.Patch,
+                        Version = version,
                         Published = release.PublishedAt
                     };
                     
