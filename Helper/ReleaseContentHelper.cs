@@ -11,8 +11,13 @@ public static class ReleaseContentHelper
 {
     public static ReleaseContentModel GetReleaseContent(string path)
     {
-        CheckContentXml(System.IO.Path.Combine(path, "content.xml"));
-        XElement xele = XElement.Load(System.IO.Path.Combine(path, "content.xml"));
+        string contentPath = System.IO.Path.Combine(path, "content.xml");
+        if(!System.IO.File.Exists(contentPath))
+            contentPath = System.IO.Path.Combine(path, "data", "content.xml");
+        if(!System.IO.File.Exists(contentPath))
+            throw new FileNotFoundException("content.xml not found in the specified path.", contentPath);
+        CheckContentXml(contentPath);
+        XElement xele = XElement.Load(contentPath);
         return ParseReleaseContent(xele, path);
     }
 
