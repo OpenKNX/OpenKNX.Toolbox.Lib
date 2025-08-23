@@ -18,7 +18,7 @@ public static class ReleaseContentHelper
             throw new FileNotFoundException("content.xml not found in the specified path.", contentPath);
         CheckContentXml(contentPath);
         XElement xele = XElement.Load(contentPath);
-        return ParseReleaseContent(xele, path);
+        return ParseReleaseContent(xele, Path.GetDirectoryName(contentPath) ?? path);
     }
 
     private static void CheckContentXml(string path)
