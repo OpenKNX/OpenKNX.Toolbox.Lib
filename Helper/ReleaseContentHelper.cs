@@ -27,28 +27,35 @@ public static class ReleaseContentHelper
         content = content.Replace("    <Products>\r\n</Content>", "    </Products>\r\n</Content>");
         System.IO.File.WriteAllText(path, content);
     }
+    
+    private static string GetAbsolutePath(string basePath, string? relativePath)
+    {
+        return Path.GetFullPath(Path.Combine(basePath, relativePath ?? "not-found"));
+    }
 
     private static ReleaseContentModel ParseReleaseContent(XElement root, string path)
     {
-        ReleaseContentModel model = new ();
+        ReleaseContentModel model = new();
 
         XElement? etsApp = root.Element("ETSapp");
-        if(etsApp == null) throw new ElementNotFoundException("ETSapp");
-        if(etsApp.Attribute("XmlFile") == null) throw new AttributeNotFoundException("XmlFile");
-        model.XmlFile = System.IO.Path.Combine(path, etsApp.Attribute("XmlFile")?.Value);
+        if (etsApp == null) throw new ElementNotFoundException("ETSapp");
+        if (etsApp.Attribute("XmlFile") == null) throw new AttributeNotFoundException("XmlFile");
+
+        model.XmlFile = GetAbsolutePath(path, etsApp.Attribute("XmlFile")?.Value);
 
         XElement? prods = root.Element("Products");
-        if(prods == null) throw new ElementNotFoundException("Products");
-        foreach(XElement prod in prods.Elements())
+        if (prods == null) throw new ElementNotFoundException("Products");
+        foreach (XElement prod in prods.Elements())
         {
-            Product product = new() {
+            Product product = new()
+            {
                 Name = prod.Attribute("Name")?.Value ?? "Unbenannt",
-                FirmwareFile = System.IO.Path.Combine(path, prod.Attribute("Firmware")?.Value),
+                FirmwareFile = GetAbsolutePath(path, prod.Attribute("Firmware")?.Value),
                 ReleaseContent = model
             };
-            if(prod.Attribute("Processor") == null) throw new AttributeNotFoundException("Processor");
+            if (prod.Attribute("Processor") == null) throw new AttributeNotFoundException("Processor");
             object? type;
-            if(!Enum.TryParse(typeof(ArchitectureType), prod.Attribute("Processor")?.Value, out type))
+            if (!Enum.TryParse(typeof(ArchitectureType), prod.Attribute("Processor")?.Value, out type))
                 throw new Exception($"Unbekannte Architektur: {prod.Attribute("Processor")?.Value}");
             product.Architecture = (ArchitectureType)type;
             model.Products.Add(product);
