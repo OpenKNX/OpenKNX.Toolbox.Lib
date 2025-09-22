@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using ESPTool.Devices;
+using EspDotNet;
 using OpenKNX.Toolbox.Lib.Data;
 
 namespace OpenKNX.Toolbox.Lib.Platforms;
@@ -62,19 +62,20 @@ public class ESP32_Platform : IPlatform
 
     public async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
     {
-        Device dev = new Device();
-        Console.WriteLine("Open Device " + device.Path);
-        ESPTool.Result result = await dev.OpenSerial(device.Path, 115200);
-        if(!result.Success)
-            throw new Exception(result.Error.ToString());
-        Console.Write("Entering Bootloader...  ");
-        result = await dev.EnterBootloader();
-        Console.WriteLine(result.Success ? "OKAY" : "FAIL");
-        Console.Write("Syncing...  ");
-        result = await dev.Sync();
-        Console.WriteLine(result.Success ? "OKAY" : "FAIL");
-        Console.Write("Checking Type... ");
-        ESPTool.Result<ChipTypes> type = await dev.DetectChipType();
-        Console.WriteLine(type.Success ? type.ToString() : "FAIL");
+        //ESPToolbox toolbox = new ESPToolbox();
+        //Device dev = new Device();
+        //Console.WriteLine("Open Device " + device.Path);
+        //ESPTool.Result result = await dev.OpenSerial(device.Path, 115200);
+        //if(!result.Success)
+        //    throw new Exception(result.Error.ToString());
+        //Console.Write("Entering Bootloader...  ");
+        //result = await dev.EnterBootloader();
+        //Console.WriteLine(result.Success ? "OKAY" : "FAIL");
+        //Console.Write("Syncing...  ");
+        //result = await dev.Sync();
+        //Console.WriteLine(result.Success ? "OKAY" : "FAIL");
+        //Console.Write("Checking Type... ");
+        //ESPTool.Result<ChipTypes> type = await dev.DetectChipType();
+        //Console.WriteLine(type.Success ? type.ToString() : "FAIL");
     }
 }

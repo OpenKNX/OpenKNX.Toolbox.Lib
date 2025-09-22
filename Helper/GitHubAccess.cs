@@ -1,4 +1,7 @@
 using OpenKNX.Toolbox.Lib.Data;
+using OpenKNX.Toolbox.Lib.Models;
+using System.Diagnostics;
+using System.Management.Automation;
 using System.Text.RegularExpressions;
 
 namespace OpenKNX.Toolbox.Lib.Helper;
@@ -6,18 +9,22 @@ namespace OpenKNX.Toolbox.Lib.Helper;
 public static class GitHubAccess
 {
     private const int OPEN_KNX_SEMANTIC_VERSION = 0;
-    private const string OPEN_KNX_ORG = "OpenKNX";
-    private const string OPEN_KNX_REPO_DEFAULT_START = "OAM-";
-    private const string OPEN_KNX_DATA_FILE_NAME = "OpenKNX.Toolbox.DataCache.json";
-    private static List<string> repositoryWhitelist = new List<string>();
+
+
+    private static List<RepositoryMapping> RepoMappings = new List<RepositoryMapping>()
+    {
+        new RepositoryMapping("$A401", "GW-REG1-Dali", "release"),
+        new RepositoryMapping("$A11F", "OAM-IP-Router", "release"),
+        new RepositoryMapping("$A11E", "OAM-IP-Router", "beta")
+    };
 
     /// <summary>
     /// Returns OpenKNX Repository data from GitHub.
     /// </summary>
     /// <returns>Returns a List of "Repository" object in case of success.</returns>
-    public static async Task<List<Repository>> GetOpenKnxRepositoriesAsync(IProgress<KeyValuePair<long, long>>? progress = null)
+    public static async Task<List<Models.Application>> GetOpenKnxApplicationsAsync(IProgress<KeyValuePair<long, long>>? progress = null)
     {
-        List<Repository> repos = new List<Repository>();
+        List<Application> apps = new();
 
         HttpClient client = new HttpClient();
         string json_response = await client.GetStringAsync("https://openknx.github.io/releases.json");
@@ -36,66 +43,101 @@ public static class GitHubAccess
             progress?.Report(new KeyValuePair<long, long>(index, content.Repositories.Count));
             index++;
 
-            Repository repository = new Repository(repo.Key, repo.Value.Url);
-            if(repo.Value.IsArchived)
-                repository.Name += " (archived)";
+            List<string> labels = GetLabels(repo.Value);
+            if(labels.Count == 0)
+                labels.Add("release");
 
-            foreach(var release in repo.Value.Releases)
+
+            foreach (string label in labels)
             {
-                string tag = release.Tag;
-                if(tag.ToLower().StartsWith("v"))
-                    tag = tag.Substring(1);
-                System.Management.Automation.SemanticVersion? version;
-                
-                try{
-                    version = new System.Management.Automation.SemanticVersion(tag);
-                }
-                catch
+                RepositoryMapping? map = RepoMappings.FirstOrDefault(m => m.Name == repo.Key && m.Label == label);
+                if (map == null)
                 {
-                    // Handle the case where the tag is not a valid semantic version
-                    // For example, if the tag is "v1.0.0-alpha", you might want to skip it
-                    System.Diagnostics.Debug.WriteLine($"Invalid semantic version: {repository.Name}/{tag}");
+                    Debug.WriteLine($"No AppId found for {repo.Key} with label {label}");
                     continue;
                 }
 
-                foreach (var asset in release.Assets)
-                {
-                    if (!asset.Name.ToLower().EndsWith(".zip"))
-                        continue;
+                Application app = new();
+                app.Name = map.Name;
+                app.AppId = map.AppId;
+                app.Label = map.Label;
 
-                    string repoName = repo.Key;
-                    if(repoName.StartsWith("OAM-"))
-                        repoName = repoName.Substring(4);
-                    if (asset.Name.StartsWith(repoName))
-                    {
-                        string buildLabel = asset.Name.Substring(repoName.Length + 1);
-                        buildLabel = buildLabel.Substring(0, buildLabel.IndexOf("-"));
-                        version = new System.Management.Automation.SemanticVersion(version.Major, version.Minor, version.Patch, buildLabel, version.BuildLabel);
-                    }
+                GetAppReleases(app, repo.Value);
 
-                    Release rel = new() {
-                        Name = asset.Name,
-                        Url = asset.Url,
-                        UrlRelease = release.Url,
-                        IsPrerelease = release.IsPrerelease,
-                        Version = version,
-                        Published = release.PublishedAt
-                    };
-                    
-                    repository.ReleasesAll.Add(rel);
-                }
-
-                repository.ReleasesAll.Sort((a, b) => a.CompareTo(b));
+                apps.Add(app);
             }
-
-            if(repository.ReleasesAll.Count > 0)
-                repos.Add(repository);
         }
 
         progress?.Report(new KeyValuePair<long, long>(index, content.Repositories.Count));
-        repos.Sort((a, b) => a.Name.CompareTo(b.Name));
+        
 
-        return repos;
+        return apps;
+    }
+
+    private static List<string> GetLabels(Models.Github.Repository repo)
+    {
+        List<string> labels = new();
+        foreach(var release in repo.Releases)
+        {
+            string tag = release.Tag;
+            if (tag.StartsWith("V") || tag.StartsWith("v"))
+                tag = tag.Substring(1);
+
+            SemanticVersion version;
+            try
+            {
+                version = new SemanticVersion(tag);
+            }
+            catch
+            {
+                Debug.WriteLine($"Invalid semantic version: {release.Name}/{tag}");
+                continue;
+            }
+            //if(!string.IsNullOrEmpty(release.Version.BuildLabel) && !labels.Contains(release.Version.BuildLabel))
+            //    labels.Add(release.Version.BuildLabel);
+
+            string preRelease = version.PreReleaseLabel?.ToLower() ?? "release";
+            if (!string.IsNullOrEmpty(preRelease) && !labels.Contains(preRelease))
+                labels.Add(preRelease);
+        }
+        return labels;
+    }
+
+    private static void GetAppReleases(Application app, Models.Github.Repository repo)
+    {
+        foreach(var release in repo.Releases)
+        {
+            string tag = release.Tag;
+            if (tag.StartsWith("V") || tag.StartsWith("v"))
+                tag = tag.Substring(1);
+
+            SemanticVersion version;
+            try
+            {
+                version = new SemanticVersion(tag);
+            }
+            catch
+            {
+                Debug.WriteLine($"Invalid semantic version: {release.Name}/{tag}");
+                continue;
+            }
+
+            string label = version.PreReleaseLabel?.ToLower() ?? "release";
+            if (label != app.Label)
+                continue;
+
+            foreach(var asset in release.Assets)
+            {
+                if (!asset.Name.EndsWith(".zip"))
+                    continue;
+
+                AppRelease appRelease = new(asset.Name, asset.Url, version);
+                appRelease.PublishedAt = asset.Updated;
+                appRelease.IsPrerelease = release.IsPrerelease;
+
+                app.Releases.Add(appRelease);
+            }
+        }
     }
 
     public static async Task DownloadRepo(string url, string targetPath, IProgress<KeyValuePair<long, long>>? progress = null)
