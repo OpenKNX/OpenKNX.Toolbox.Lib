@@ -19,7 +19,7 @@ public class PlatformDevice
     
     public override string ToString()
     {
-        return $"{Architecture} {Name} {Path}";
+        return $"{Name} [{Path}]";
     }
 
 }

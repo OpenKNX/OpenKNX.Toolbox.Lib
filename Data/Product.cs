@@ -1,24 +1,23 @@
 using OpenKNX.Toolbox.Lib.Models;
+using System.Management.Automation;
 
 namespace OpenKNX.Toolbox.Lib.Data;
 
 public class Product
 {
-    public string Name { get; set; } = "";
-    public string FirmwareFile { get; set; } = "";
+    public string Name { get; } = "";
+    public string FirmwareFile { get; } = "";
+    public string AppId { get; } = "";
     public ArchitectureType Architecture { get; set; } = ArchitectureType.RP2040;
+    public SemanticVersion Version { get; }
 
-    public Product() { }
-
-    public Product(string name, string file, ArchitectureType arch)
+    public Product(string name, string file, string appId, SemanticVersion version)
     {
         Name = name;
         FirmwareFile = file;
-        Architecture = arch;
+        AppId = appId;
+        Version = version;
     }
-
-    [Newtonsoft.Json.JsonIgnore]
-    public ReleaseContentModel? ReleaseContent { get; set; }
 
     public override string ToString()
     {

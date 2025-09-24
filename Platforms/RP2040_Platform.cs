@@ -1,7 +1,11 @@
 using OpenKNX.Toolbox.Lib.Data;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO.Ports;
+using System.Management;
+using System.Management.Automation;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace OpenKNX.Toolbox.Lib.Platforms;
 
@@ -9,27 +13,20 @@ public class RP2040_Platform : IPlatform
 {
     public ArchitectureType Architecture { get; } = ArchitectureType.RP2040;
 
-    public async Task<List<PlatformDevice>> GetDevices(bool onlySerial = false)
+    public async Task GetDevices(ObservableCollection<PlatformDevice> devices, bool onlySerial = false)
     {
-        List<PlatformDevice> devices = new();
-
         if(!onlySerial)
             FindUsbDrives(devices);
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            await FindPicoWindows(devices);
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            await FindPicoLinux(devices);
+        await FindPicoWindows(devices);
 
 #if DEBUG
         if(!onlySerial)
-            devices.Add(new PlatformDevice(Architecture, "Test Drive", "K:\\", "copy"));
+            devices.Add(new PlatformDevice(Architecture, "Test Drive", @"C:\Users\Mike\Desktop\", "copy"));
 #endif
-
-        return devices;
     }
 
-    private void FindUsbDrives(List<PlatformDevice> devices)
+    private void FindUsbDrives(ObservableCollection<PlatformDevice> devices)
     {
         foreach (var drive in DriveInfo.GetDrives())
         {
@@ -39,10 +36,29 @@ public class RP2040_Platform : IPlatform
         }
     }
 
-    private async Task FindPicoWindows(List<PlatformDevice> devices)
+    private async Task FindPicoWindows(ObservableCollection<PlatformDevice> devices)
     {
-        string command = "$portList = get-pnpdevice -class Ports -erroraction 'silentlycontinue'\r\n" +
-                    "foreach ($usbDevice in $portList) {\r\n" + 
+        if(OperatingSystem.IsWindows())
+        {
+            var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE PNPClass = 'Ports'");
+            foreach (ManagementObject device in searcher.Get())
+            {
+                if (device["Status"]?.ToString() != "OK")
+                    continue;
+                string deviceId = device["DeviceID"]?.ToString() ?? "";
+                if (!deviceId.Contains("USB\\VID_2E8A"))
+                    continue;
+                string deviceName = device["Name"]?.ToString() ?? "";
+                if (!deviceName.Contains("COM"))
+                    continue;
+                Regex regex = new Regex(@"(COM\d{1,3})");
+                string deviceCOM = regex.Match(deviceName).Groups[1].Value;
+                devices.Add(new PlatformDevice(Architecture, "RPI-RP2 (Boot)", deviceCOM, "boot"));
+            }
+        } else
+        {
+            string command = "$portList = get-pnpdevice -class Ports -erroraction 'silentlycontinue'\r\n" +
+                    "foreach ($usbDevice in $portList) {\r\n" +
                         "\tif ($usbDevice.Present) {\r\n" +
                             "\t\t$isPico = $usbDevice.InstanceId.StartsWith('USB\\VID_2E8A')\r\n" +
                             "\t\t$isCom = $usbDevice.Name -match 'COM\\d{1,3}'\r\n" +
@@ -52,43 +68,29 @@ public class RP2040_Platform : IPlatform
                             "\t\t}\r\n" +
                         "\t}\r\n" +
                     "}";
-        using var proc = new Process { StartInfo = { 
-            UseShellExecute = false, 
-            FileName = "powershell.exe",
-            RedirectStandardOutput = true,
-            CreateNoWindow = true,
-            Arguments = command
-        } };
-        proc.Start();
-        List<string> lines = new();
-        await proc.WaitForExitAsync();
-        while (!proc.StandardOutput.EndOfStream)
-        {
-            string line = await proc.StandardOutput.ReadLineAsync();
-            lines.Add(line);
+            using var proc = new Process
+            {
+                StartInfo = {
+                    UseShellExecute = false,
+                    FileName = "powershell.exe",
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true,
+                    Arguments = command
+                }
+            };
+            proc.Start();
+            List<string> lines = new();
+            await proc.WaitForExitAsync();
+            while (!proc.StandardOutput.EndOfStream)
+            {
+                string line = await proc.StandardOutput.ReadLineAsync() ?? string.Empty;
+                if(!string.IsNullOrEmpty(line))
+                    lines.Add(line);
+            }
+
+            foreach (string port in lines)
+                devices.Add(new PlatformDevice(Architecture, "RPI-RP2 (Boot)", port, "boot"));
         }
-            
-        foreach(string port in lines)
-            devices.Add(new PlatformDevice(Architecture, "RPI-RP2 (Boot)", port, "boot"));
-    }
-
-    private async Task FindPicoLinux(List<PlatformDevice> devices)
-    {
-        throw new Exception("Diese Funktion ist auf Linux nicht verfügbar");
-
-        /*
-flu0@laptop:~$ ls /dev/serial/by-path/
-total 0
-lrwxrwxrwx 1 root root 13 2011-07-20 17:12 pci-0000:00:0b.0-usb-0:3:1.0-port0 -> ../../ttyUSB0
-
-    ls /dev/ttyACM*
-    -> /dev/ttyACM0 /dev/ttyACM1 ...
-
-    cat /sys/class/tty/ttyACM1/device/uevent
-
-    PRODUCT=2e8a/a/100
-    TYPE=0/0/0
-        */
     }
 
     public async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
@@ -110,10 +112,8 @@ lrwxrwxrwx 1 root root 13 2011-07-20 17:12 pci-0000:00:0b.0-usb-0:3:1.0-port0 ->
 
     public async Task UploadViaCopy(string drive, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
     {
-        Console.WriteLine("opening files");
         FileStream source = new FileStream(firmwarePath, System.IO.FileMode.Open);
         FileStream target = new FileStream(Path.Combine(drive, "firmware.uf2"), System.IO.FileMode.Create);
-        Console.WriteLine("opening finished");
 
         const int bufferSize = 4096;
         byte[] buffer = new byte[bufferSize];
@@ -123,9 +123,7 @@ lrwxrwxrwx 1 root root 13 2011-07-20 17:12 pci-0000:00:0b.0-usb-0:3:1.0-port0 ->
             readedBytes = await source.ReadAsync(buffer, 0, bufferSize);
             await target.WriteAsync(buffer, 0, readedBytes);
             wroteBytes += readedBytes;
-            //progress?.Report(new KeyValuePair<long, long>(wroteBytes, source.Length));
-            // if(wroteBytes % 51200 == 0)
-            //     await Task.Delay(1);
+            progress?.Report(new KeyValuePair<long, long>(wroteBytes, source.Length));
             if(readedBytes < bufferSize)
                 break;
         }
@@ -136,7 +134,7 @@ lrwxrwxrwx 1 root root 13 2011-07-20 17:12 pci-0000:00:0b.0-usb-0:3:1.0-port0 ->
 
     public async Task UploadViaBoot(string port, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
     {
-        List<PlatformDevice> devices = new();
+        ObservableCollection<PlatformDevice> devices = new();
         FindUsbDrives(devices); //get usb drives before we started, so we know which ist the correct one
 
         SerialPort sp = new SerialPort(port, 115200);
@@ -164,7 +162,7 @@ lrwxrwxrwx 1 root root 13 2011-07-20 17:12 pci-0000:00:0b.0-usb-0:3:1.0-port0 ->
 
         await Task.Delay(1000);
 
-        List<PlatformDevice> new_devices = new();
+        ObservableCollection<PlatformDevice> new_devices = new();
         FindUsbDrives(new_devices);
         PlatformDevice? new_device = null;
         foreach(PlatformDevice device in new_devices)
@@ -174,6 +172,6 @@ lrwxrwxrwx 1 root root 13 2011-07-20 17:12 pci-0000:00:0b.0-usb-0:3:1.0-port0 ->
         if(new_device == null)
             throw new Exception("Gerät konnte nicht in den Bootloadermodus versetzt werden.", exception);
 
-        UploadViaCopy(new_device.Path, firmwarePath, progress);
+        await UploadViaCopy(new_device.Path, firmwarePath, progress);
     }
 }

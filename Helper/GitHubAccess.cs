@@ -13,9 +13,34 @@ public static class GitHubAccess
 
     private static List<RepositoryMapping> RepoMappings = new List<RepositoryMapping>()
     {
-        new RepositoryMapping("$A401", "GW-REG1-Dali", "release"),
+        new RepositoryMapping("$A030", "OAM-LogicModule", "release"),
+        new RepositoryMapping("$A031", "OAM-LogicModule", "dev"),
+        // ing-dom
+        new RepositoryMapping("$A102", "SEN-UP1-8xTH", "release"),
+        new RepositoryMapping("$A103", "SEN-UP1-8xTH", "beta"),
         new RepositoryMapping("$A11F", "OAM-IP-Router", "release"),
-        new RepositoryMapping("$A11E", "OAM-IP-Router", "beta")
+        new RepositoryMapping("$A11E", "OAM-IP-Router", "beta"),
+        // smart-mf
+        new RepositoryMapping("$A228", "SOM-UP", "release"),
+        new RepositoryMapping("$A229", "SOM-UP", "dev"),
+        // thewhobox
+        new RepositoryMapping("$A400", "OAM-InfraredGateway", "release"),
+        new RepositoryMapping("$A401", "GW-REG1-Dali", "release"),
+        new RepositoryMapping("$A402", "Omote", "release"),
+        // traxanos
+        new RepositoryMapping("$A302", "VirtualButtonModule", "release"),
+        new RepositoryMapping("$A303", "VirtualButtonModule", "beta"),
+        // mgeramb
+        new RepositoryMapping("$AE29", "OAM-SmartHomeBridge", "dev"),
+        new RepositoryMapping("$AE2A", "OAM-SmartHomeBridge", "release"),
+        new RepositoryMapping("$AE2B", "OAM-Sonos", "dev"),
+        new RepositoryMapping("$AE2C", "OAM-Sonos", "release"),
+        new RepositoryMapping("$AE2D", "OAM-InternetServices", "dev"),
+        new RepositoryMapping("$AE2E", "OAM-InternetServices", "release"),
+        new RepositoryMapping("$AE2F", "OAM-InternetServices", "dev"),
+        new RepositoryMapping("$AE30", "OAM-InternetServices", "release"),
+        new RepositoryMapping("$AE31", "OAM-ShutterControl", "dev"),
+        new RepositoryMapping("$AE32", "OAM-InternetServices", "release"),
     };
 
     /// <summary>
@@ -64,7 +89,8 @@ public static class GitHubAccess
 
                 GetAppReleases(app, repo.Value);
 
-                apps.Add(app);
+                if (app.Releases.Count > 0)
+                    apps.Add(app);
             }
         }
 
@@ -83,24 +109,52 @@ public static class GitHubAccess
             if (tag.StartsWith("V") || tag.StartsWith("v"))
                 tag = tag.Substring(1);
 
-            SemanticVersion version;
-            try
-            {
-                version = new SemanticVersion(tag);
-            }
-            catch
+            SemanticVersion? version = GetSemanticVersion(tag);
+            if (version == null)
+                version = GetSemanticVersionWithRegex(release.Name);
+            if(version == null)
             {
                 Debug.WriteLine($"Invalid semantic version: {release.Name}/{tag}");
                 continue;
             }
-            //if(!string.IsNullOrEmpty(release.Version.BuildLabel) && !labels.Contains(release.Version.BuildLabel))
-            //    labels.Add(release.Version.BuildLabel);
 
             string preRelease = version.PreReleaseLabel?.ToLower() ?? "release";
             if (!string.IsNullOrEmpty(preRelease) && !labels.Contains(preRelease))
                 labels.Add(preRelease);
         }
         return labels;
+    }
+
+    private static SemanticVersion? GetSemanticVersion(string tag)
+    {
+        if (tag.StartsWith("V") || tag.StartsWith("v"))
+            tag = tag.Substring(1);
+        SemanticVersion version;
+        try
+        {
+            version = new SemanticVersion(tag);
+        }
+        catch
+        {
+            return GetSemanticVersionWithRegex(tag);
+        }
+        return version;
+    }
+
+    private static SemanticVersion? GetSemanticVersionWithRegex(string tag)
+    {
+        Regex regex = new Regex(@"(\d+)\.(\d+)\.(\d+)(-(.+))?");
+        Match m = regex.Match(tag);
+        if(m.Success)
+        {
+
+        } else
+        {
+            regex = new Regex(@"(\d+)\.(\d+)(-(.+))?");
+            m = regex.Match(tag);
+            return new SemanticVersion(m.Groups[0].ToString());
+        }
+        return null;
     }
 
     private static void GetAppReleases(Application app, Models.Github.Repository repo)
@@ -111,12 +165,10 @@ public static class GitHubAccess
             if (tag.StartsWith("V") || tag.StartsWith("v"))
                 tag = tag.Substring(1);
 
-            SemanticVersion version;
-            try
-            {
-                version = new SemanticVersion(tag);
-            }
-            catch
+            SemanticVersion? version = GetSemanticVersion(tag);
+            if (version == null)
+                version = GetSemanticVersionWithRegex(release.Name);
+            if (version == null)
             {
                 Debug.WriteLine($"Invalid semantic version: {release.Name}/{tag}");
                 continue;
