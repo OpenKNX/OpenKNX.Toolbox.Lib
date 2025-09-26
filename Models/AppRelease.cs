@@ -12,14 +12,16 @@ namespace OpenKNX.Toolbox.Lib.Models
         public string Name { get; set; } = string.Empty;
         public DateTime PublishedAt { get; set; }
         public string FileUrl { get; set; } = string.Empty;
+        public string NotesUrl { get; set; } = string.Empty;
         public bool IsPrerelease { get; set; } = false;
         public SemanticVersion Version { get; set; }
 
-        public AppRelease(string name, string url, SemanticVersion version)
+        public AppRelease(string name, string url, string notes, SemanticVersion version)
         {
             Version = version;
             Name = name;
             FileUrl = url;
+            NotesUrl = notes;
         }
     }
 }

@@ -93,35 +93,41 @@ public class RP2040_Platform : IPlatform
         }
     }
 
-    public async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
+    public async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null, CancellationToken token = default)
     {
         switch(device.Method)
         {
             case "copy":
-                await UploadViaCopy(device.Path, firmwarePath, progress);
+                await UploadViaCopy(device.Path, firmwarePath, progress, token);
                 break;
 
             case "boot":
-                await UploadViaBoot(device.Path, firmwarePath, progress);
+                await UploadViaBoot(device.Path, firmwarePath, progress, token);
                 break;
+
+            case "ota":
+                ESP32_Platform dummy = new ESP32_Platform();
+                await dummy.DoUpload(device, firmwarePath, progress, token);
+                return;
 
             default:
                 throw new NotImplementedException(device.Method);
         }
     }
 
-    public async Task UploadViaCopy(string drive, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
+    public async Task UploadViaCopy(string drive, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null, CancellationToken token = default)
     {
-        FileStream source = new FileStream(firmwarePath, System.IO.FileMode.Open);
-        FileStream target = new FileStream(Path.Combine(drive, "firmware.uf2"), System.IO.FileMode.Create);
+        FileStream source = new FileStream(firmwarePath, FileMode.Open);
+        FileStream target = new FileStream(Path.Combine(drive, "firmware.uf2"), FileMode.Create);
 
         const int bufferSize = 4096;
         byte[] buffer = new byte[bufferSize];
         int readedBytes = 0;
         int wroteBytes = 0;
-        while(true) {
-            readedBytes = await source.ReadAsync(buffer, 0, bufferSize);
-            await target.WriteAsync(buffer, 0, readedBytes);
+
+        while (!token.IsCancellationRequested) {
+            readedBytes = await source.ReadAsync(buffer, 0, bufferSize, token);
+            await target.WriteAsync(buffer, 0, readedBytes, token);
             wroteBytes += readedBytes;
             progress?.Report(new KeyValuePair<long, long>(wroteBytes, source.Length));
             if(readedBytes < bufferSize)
@@ -132,7 +138,7 @@ public class RP2040_Platform : IPlatform
         source.Close();
     }
 
-    public async Task UploadViaBoot(string port, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
+    public async Task UploadViaBoot(string port, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null, CancellationToken token = default)
     {
         ObservableCollection<PlatformDevice> devices = new();
         FindUsbDrives(devices); //get usb drives before we started, so we know which ist the correct one
@@ -142,7 +148,7 @@ public class RP2040_Platform : IPlatform
         try {
             sp.Open();
             sp.Write(new byte[] { 7 }, 0, 1); //tell device to save data
-            await Task.Delay(1000);
+            await Task.Delay(1000, token);
         } catch(Exception ex) {
             exception = ex;
             Console.WriteLine("RPI-RP2: Fehler beim Anweisen Daten zu speichern");
@@ -160,7 +166,10 @@ public class RP2040_Platform : IPlatform
         if(sp.IsOpen)
             sp.Close();
 
-        await Task.Delay(1000);
+        await Task.Delay(1000, token);
+
+        if(token.IsCancellationRequested)
+            return;
 
         ObservableCollection<PlatformDevice> new_devices = new();
         FindUsbDrives(new_devices);
@@ -172,6 +181,9 @@ public class RP2040_Platform : IPlatform
         if(new_device == null)
             throw new Exception("Gerät konnte nicht in den Bootloadermodus versetzt werden.", exception);
 
-        await UploadViaCopy(new_device.Path, firmwarePath, progress);
+        if (token.IsCancellationRequested)
+            return;
+
+        await UploadViaCopy(new_device.Path, firmwarePath, progress, token);
     }
 }

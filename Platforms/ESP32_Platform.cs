@@ -67,7 +67,7 @@ public class ESP32_Platform : IPlatform
         }
     }
 
-    public async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
+    public async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null, CancellationToken token = default)
     {
         switch(device.Method)
         {
@@ -85,43 +85,50 @@ public class ESP32_Platform : IPlatform
         
     }
 
-    private async Task UploadTool(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
+    private async Task UploadTool(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null, CancellationToken token = default)
     {
         ESPToolbox toolbox = new ESPToolbox();
 
         Communicator comm = toolbox.CreateCommunicator();
-        Debug.WriteLine("Open Serial " + device.Path + " @115200");
-        toolbox.OpenSerial(comm, device.Path, 115200);
-
-        Debug.WriteLine("Entering Bootloader...");
-        ILoader loader = await toolbox.StartBootloaderAsync(comm);
-
-        ChipTypes type = await toolbox.DetectChipTypeAsync(loader);
-        Debug.WriteLine("Detected Chip: " + type.ToString());
-
-        loader = await toolbox.StartSoftloaderAsync(comm, loader, type);
-        Debug.WriteLine("Started Softloader");
-
-        string factoryBin = firmwarePath;
-        if (!factoryBin.EndsWith(".factory.bin"))
-            factoryBin = factoryBin.Replace(".bin", ".factory.bin");
-
-        IUploadTool uploader = toolbox.CreateUploadFlashTool(loader, type);
-        Debug.WriteLine("Uploading Firmware: " + factoryBin);
-
-        var firmware = GetFirmware(factoryBin);
-        var progress_float = new Progress<float>(p =>
+        try
         {
-            progress?.Report(new KeyValuePair<long, long>((long)(p * 100), 100));
-        });
+            Debug.WriteLine("Open Serial " + device.Path + " @115200");
+            toolbox.OpenSerial(comm, device.Path, 115200);
 
-        CancellationTokenSource cts = new CancellationTokenSource();
-        await toolbox.ChangeBaudAsync(comm, loader, 921600);
-        await toolbox.UploadFirmwareAsync(uploader, firmware, cts.Token, progress_float);
-        await toolbox.ResetDeviceAsync(comm);
+            Debug.WriteLine("Entering Bootloader...");
+            ILoader loader = await toolbox.StartBootloaderAsync(comm, token);
+
+            ChipTypes type = await toolbox.DetectChipTypeAsync(loader);
+            Debug.WriteLine("Detected Chip: " + type.ToString());
+
+            loader = await toolbox.StartSoftloaderAsync(comm, loader, type);
+            Debug.WriteLine("Started Softloader");
+
+            string factoryBin = firmwarePath;
+            if (!factoryBin.EndsWith(".factory.bin"))
+                factoryBin = factoryBin.Replace(".bin", ".factory.bin");
+
+            IUploadTool uploader = toolbox.CreateUploadFlashTool(loader, type);
+            Debug.WriteLine("Uploading Firmware: " + factoryBin);
+
+            var firmware = GetFirmware(factoryBin);
+            var progress_float = new Progress<float>(p =>
+            {
+                progress?.Report(new KeyValuePair<long, long>((long)(p * 100), 100));
+            });
+
+            await toolbox.ChangeBaudAsync(comm, loader, 921600, token);
+            await toolbox.UploadFirmwareAsync(uploader, firmware, token, progress_float);
+            await toolbox.ResetDeviceAsync(comm, token);
+        } catch(Exception ex)
+        {
+            toolbox.CloseSerial(comm);
+            comm.Dispose();
+            throw new Exception(ex.Message, ex);
+        }
     }
 
-    private async Task UploadOTA(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
+    private async Task UploadOTA(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null, CancellationToken token = default)
     {
         //if (!firmwarePath.EndsWith(".factory.bin"))
         //    firmwarePath = firmwarePath.Replace(".bin", ".factory.bin");

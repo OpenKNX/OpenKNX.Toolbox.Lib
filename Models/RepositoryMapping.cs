@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace OpenKNX.Toolbox.Lib.Models
 {
-    internal class RepositoryMapping
+    public class RepositoryMapping
     {
         public string Name { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;

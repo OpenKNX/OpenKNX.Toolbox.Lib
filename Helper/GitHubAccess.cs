@@ -43,6 +43,11 @@ public static class GitHubAccess
         new RepositoryMapping("$AE32", "OAM-InternetServices", "release"),
     };
 
+    public static RepositoryMapping? GetRepoMappingByAppId(string appId)
+    {
+        return RepoMappings.FirstOrDefault(m => m.AppId == appId);
+    }
+
     /// <summary>
     /// Returns OpenKNX Repository data from GitHub.
     /// </summary>
@@ -147,7 +152,7 @@ public static class GitHubAccess
         Match m = regex.Match(tag);
         if(m.Success)
         {
-
+            return new SemanticVersion(m.Groups[0].ToString());
         } else
         {
             regex = new Regex(@"(\d+)\.(\d+)(-(.+))?");
@@ -183,7 +188,7 @@ public static class GitHubAccess
                 if (!asset.Name.EndsWith(".zip"))
                     continue;
 
-                AppRelease appRelease = new(asset.Name, asset.Url, version);
+                AppRelease appRelease = new(asset.Name, asset.Url, release.Url, version);
                 appRelease.PublishedAt = asset.Updated;
                 appRelease.IsPrerelease = release.IsPrerelease;
 

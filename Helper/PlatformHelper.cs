@@ -31,11 +31,11 @@ public class PlatformHelper
         }
     }
 
-    public static async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null)
+    public static async Task DoUpload(PlatformDevice device, string firmwarePath, IProgress<KeyValuePair<long, long>>? progress = null, CancellationToken token = default)
     {
         IPlatform? platform = GetPlatforms().FirstOrDefault(p => p.Architecture == device.Architecture);
         if(platform == null)
             throw new Exception("No platform found for this device.");
-        await platform.DoUpload(device, firmwarePath, progress);
+        await platform.DoUpload(device, firmwarePath, progress, token);
     }
 }
