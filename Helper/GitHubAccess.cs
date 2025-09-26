@@ -30,17 +30,23 @@ public static class GitHubAccess
         // traxanos
         new RepositoryMapping("$A302", "VirtualButtonModule", "release"),
         new RepositoryMapping("$A303", "VirtualButtonModule", "beta"),
+        // AB-SmartHome
+        new RepositoryMapping("$A604", "OAM-TouchRound", "release"),
         // mgeramb
         new RepositoryMapping("$AE29", "OAM-SmartHomeBridge", "dev"),
         new RepositoryMapping("$AE2A", "OAM-SmartHomeBridge", "release"),
         new RepositoryMapping("$AE2B", "OAM-Sonos", "dev"),
         new RepositoryMapping("$AE2C", "OAM-Sonos", "release"),
         new RepositoryMapping("$AE2D", "OAM-InternetServices", "dev"),
-        new RepositoryMapping("$AE2E", "OAM-InternetServices", "release"),
-        new RepositoryMapping("$AE2F", "OAM-InternetServices", "dev"),
-        new RepositoryMapping("$AE30", "OAM-InternetServices", "release"),
+        new RepositoryMapping("$AE2E", "OAM-InternetServices", "release"),  
         new RepositoryMapping("$AE31", "OAM-ShutterControl", "dev"),
-        new RepositoryMapping("$AE32", "OAM-InternetServices", "release"),
+        new RepositoryMapping("$AE32", "OAM-ShutterControl", "release"),
+        new RepositoryMapping("$AE33", "OAM-TouchDisplay", "dev"),
+        new RepositoryMapping("$AE34", "OAM-TouchDisplay", "release"),
+        new RepositoryMapping("$AE33", "OAM-Aircondition", "dev"),
+        new RepositoryMapping("$AE34", "OAM-Aircondition", "release"),
+        new RepositoryMapping("$AE37", "OAM-Nuki", "dev"),
+        new RepositoryMapping("$AE38", "OAM-Nuki", "release"),
     };
 
     public static RepositoryMapping? GetRepoMappingByAppId(string appId)
