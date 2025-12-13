@@ -11,6 +11,8 @@ namespace OpenKNX.Toolbox.Lib.Models
         public string AppId { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string HelpThread { get; set; } = string.Empty;
         public List<AppRelease> Releases { get; set; } = new();
     }
 }

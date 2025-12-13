@@ -11,13 +11,19 @@ namespace OpenKNX.Toolbox.Lib.Models
         public string Name { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
         public string AppId { get; set; } = string.Empty;
-
+        public string HelpThread { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
 
         public RepositoryMapping(string appId, string name, string label)
         {
             Name = name;
             Label = label;
             AppId = appId;
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} ({AppId}) - {Label}";
         }
     }
 }

@@ -11,43 +11,7 @@ public static class GitHubAccess
     private const int OPEN_KNX_SEMANTIC_VERSION = 0;
 
 
-    private static List<RepositoryMapping> RepoMappings = new List<RepositoryMapping>()
-    {
-        new RepositoryMapping("$A030", "OAM-LogicModule", "release"),
-        new RepositoryMapping("$A031", "OAM-LogicModule", "dev"),
-        // ing-dom
-        new RepositoryMapping("$A102", "SEN-UP1-8xTH", "release"),
-        new RepositoryMapping("$A103", "SEN-UP1-8xTH", "beta"),
-        new RepositoryMapping("$A11F", "OAM-IP-Router", "release"),
-        new RepositoryMapping("$A11E", "OAM-IP-Router", "beta"),
-        // smart-mf
-        new RepositoryMapping("$A228", "SOM-UP", "release"),
-        new RepositoryMapping("$A229", "SOM-UP", "dev"),
-        // thewhobox
-        new RepositoryMapping("$A400", "OAM-InfraredGateway", "release"),
-        new RepositoryMapping("$A401", "GW-REG1-Dali", "release"),
-        new RepositoryMapping("$A402", "Omote", "release"),
-        // traxanos
-        new RepositoryMapping("$A302", "VirtualButtonModule", "release"),
-        new RepositoryMapping("$A303", "VirtualButtonModule", "beta"),
-        // AB-SmartHome
-        new RepositoryMapping("$A604", "OAM-TouchRound", "release"),
-        // mgeramb
-        new RepositoryMapping("$AE29", "OAM-SmartHomeBridge", "dev"),
-        new RepositoryMapping("$AE2A", "OAM-SmartHomeBridge", "release"),
-        new RepositoryMapping("$AE2B", "OAM-Sonos", "dev"),
-        new RepositoryMapping("$AE2C", "OAM-Sonos", "release"),
-        new RepositoryMapping("$AE2D", "OAM-InternetServices", "dev"),
-        new RepositoryMapping("$AE2E", "OAM-InternetServices", "release"),  
-        new RepositoryMapping("$AE31", "OAM-ShutterControl", "dev"),
-        new RepositoryMapping("$AE32", "OAM-ShutterControl", "release"),
-        new RepositoryMapping("$AE33", "OAM-TouchDisplay", "dev"),
-        new RepositoryMapping("$AE34", "OAM-TouchDisplay", "release"),
-        new RepositoryMapping("$AE33", "OAM-Aircondition", "dev"),
-        new RepositoryMapping("$AE34", "OAM-Aircondition", "release"),
-        new RepositoryMapping("$AE37", "OAM-Nuki", "dev"),
-        new RepositoryMapping("$AE38", "OAM-Nuki", "release"),
-    };
+    private static List<RepositoryMapping> RepoMappings = new List<RepositoryMapping>();
 
     public static RepositoryMapping? GetRepoMappingByAppId(string appId)
     {
@@ -63,7 +27,25 @@ public static class GitHubAccess
         List<Application> apps = new();
 
         HttpClient client = new HttpClient();
-        string json_response = await client.GetStringAsync("https://openknx.github.io/releases.json");
+
+        string json_response = await client.GetStringAsync("https://go.openknx.de/toolbox-data-applications");
+        Models.Github.ApplicationsContent? applications = Newtonsoft.Json.JsonConvert.DeserializeObject<Models.Github.ApplicationsContent>(json_response);
+        if(applications == null)
+            throw new Exception("Error while deserializing JSON response.");
+        foreach (var repo in applications.Repositories)
+        {
+            foreach(var appId in repo.Apps)
+            {
+                RepositoryMapping mapping = new RepositoryMapping(appId.AppId, repo.Repository, appId.Label)
+                {
+                    Description = repo.Description,
+                    HelpThread = repo.HelpThread
+                };
+                RepoMappings.Add(mapping);
+            }
+        }
+
+        json_response = await client.GetStringAsync("https://go.openknx.de/toolbox-data-releases");
         
         //json_response = json_response.Replace("v0.1.0-ALPHA", "0.1.0-ALPHA");
         Models.Github.OpenKnxContent? content = Newtonsoft.Json.JsonConvert.DeserializeObject<Models.Github.OpenKnxContent>(json_response);
@@ -97,6 +79,8 @@ public static class GitHubAccess
                 app.Name = map.Name;
                 app.AppId = map.AppId;
                 app.Label = map.Label;
+                app.Description = map.Description;
+                app.HelpThread = map.HelpThread;
 
                 GetAppReleases(app, repo.Value);
 
