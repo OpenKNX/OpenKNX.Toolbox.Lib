@@ -131,6 +131,7 @@ public static class GitHubAccess
         }
         catch
         {
+            Console.WriteLine($"Invalid semantic version: {tag}");
             return GetSemanticVersionWithRegex(tag);
         }
         return version;
@@ -149,7 +150,6 @@ public static class GitHubAccess
             m = regex.Match(tag);
             return new SemanticVersion(m.Groups[0].ToString());
         }
-        return null;
     }
 
     private static void GetAppReleases(Application app, Models.Github.Repository repo)
