@@ -55,6 +55,15 @@ public static class ReleaseContentHelper
         model.XmlFile = GetAbsolutePath(path, etsApp.Attribute("XmlFile")?.Value);
         model.ReleaseName = etsApp.Attribute("Name")?.Value ?? "Unbenannt";
 
+        // Detect translations directory relative to the XML file
+        string? xmlDir = Path.GetDirectoryName(model.XmlFile);
+        if (xmlDir != null)
+        {
+            string translationsDir = Path.Combine(xmlDir, "translations");
+            if (Directory.Exists(translationsDir))
+                model.TranslationsPath = translationsDir;
+        }
+
         XElement? prods = root.Element("Products");
         if (prods == null) throw new ElementNotFoundException("Products");
         foreach (XElement prod in prods.Elements())

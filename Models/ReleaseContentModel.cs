@@ -7,6 +7,7 @@ public class ReleaseContentModel
 {
     public ObservableCollection<Product> Products { get; set; } = new ();
     public string XmlFile { get; set; } = "";
+    public string TranslationsPath { get; set; } = "";
     public string RepositoryName { get; set; } = "";
     public string ReleaseName { get; set; } = "";
     public DateTimeOffset? Published { get; set; }
